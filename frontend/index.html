@@ -1,0 +1,47 @@
+
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuizRoom</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+    <main class="container">
+        <h1>🧠 QuizRoom</h1>
+        <p>Достарыңмен бірге қызықты квиз ойна!</p>
+
+        <div class="card">
+            <h2>Ойынға қосылу</h2>
+            <input type="text" id="pin" placeholder="6 таңбалы PIN енгіз">
+            <button onclick="joinRoom()">Ойынға кіру</button>
+        </div>
+
+        <div class="card">
+            <h2>Сен жүргізушісің бе?</h2>
+            <a href="host.html">Жүргізуші панелі</a>
+        </div>
+
+        <div class="card">
+            <h2>Өз квизіңді жаса</h2>
+            <a href="create.html">Квиз жасау</a>
+        </div>
+    </main>
+
+    <script>
+        function joinRoom() {
+            const pin = document.getElementById("pin").value.trim();
+
+            if (!/^\d{6}$/.test(pin)) {
+                alert("6 таңбалы PIN енгіз!");
+                return;
+            }
+
+            window.location.href = "join.html?pin=" + pin;
+        }
+    </script>
+
+</body>
+</html>

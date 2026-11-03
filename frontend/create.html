@@ -1,0 +1,120 @@
+
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuizRoom - Квиз жасау</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #19183f, #4930a0);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 18px;
+            width: 90%;
+            max-width: 550px;
+            text-align: center;
+        }
+
+        h1 {
+            color: #4930a0;
+        }
+
+        input {
+            width: 95%;
+            padding: 14px;
+            margin: 12px 0;
+            border: 1px solid #ccc;
+            border-radius: 9px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+
+        button {
+            width: 100%;
+            padding: 15px;
+            margin-top: 12px;
+            background: #5935c5;
+            color: white;
+            border: none;
+            border-radius: 9px;
+            font-size: 17px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #40229c;
+        }
+
+        #result {
+            margin-top: 20px;
+            overflow-wrap: anywhere;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>🧠 Жаңа квиз жасау</h1>
+
+        <label>Квиз атауы</label>
+        <input id="title" type="text" placeholder="Квиз атауын енгіз">
+
+        <label>Сұрақ саны</label>
+        <input id="count" type="number" value="5" min="1" max="20">
+
+        <button onclick="createQuiz()">Квиз құру</button>
+
+        <p id="result"></p>
+
+        <a href="index.html">Басты бетке қайту</a>
+    </div>
+
+    <script>
+        async function createQuiz() {
+            const title = document.getElementById("title").value.trim();
+            const count = Number(document.getElementById("count").value);
+            const result = document.getElementById("result");
+
+            if (!title || !Number.isInteger(count) || count < 1 || count > 20) {
+                result.textContent = "Атауды және 1-20 аралығындағы сұрақ санын енгіз!";
+                return;
+            }
+
+            result.textContent = "Квиз сақталуда...";
+
+            try {
+                const response = await fetch("/api/quizzes", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ title, count })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || "Қате шықты");
+                }
+
+                result.textContent = "✅ " + data.message +
+                    " Квиз ID: " + data.quiz.id;
+
+            } catch (error) {
+                result.textContent = "❌ Қате: " + error.message;
+            }
+        }
+    </script>
+
+</body>
+</html>
