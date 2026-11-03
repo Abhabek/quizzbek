@@ -1,58 +1,93 @@
-
-from flask import Flask, jsonify, request
-from storage import save_quiz
-import uuid
-import os
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-app = Flask(__name__, static_folder=os.path.join(BASE_DIR, "..", "frontend"), static_url_path="")
-
-
-@app.route("/")
-def home():
-    return app.send_static_file("index.html")
-
-
-@app.route("/api/test")
-def test():
-    return jsonify({
-        "message": "QuizRoom сервері жұмыс істеп тұр!"
-    })
-
-
-@app.route("/api/quizzes", methods=["POST"])
-def create_quiz():
-    data = request.get_json()
-
-    if not data:
-        return jsonify({"error": "Деректер жіберілмеді"}), 400
-
-    title = data.get("title", "").strip()
-    count = data.get("count", 0)
-
-    if not title:
-        return jsonify({"error": "Квиз атауын енгіз!"}), 400
-
-    try:
-        count = int(count)
-    except (ValueError, TypeError):
-        return jsonify({"error": "Сұрақ саны дұрыс емес"}), 400
-
-    if count < 1 or count > 20:
-        return jsonify({"error": "Сұрақ саны 1-20 аралығында болуы керек"}), 400
-
-    quiz = {
-        "id": str(uuid.uuid4()),
-        "title": title,
-        "count": count
-    }
-
-    save_quiz(quiz)
-
-    return jsonify({
-        "message": "Квиз сәтті сақталды!",
-        "quiz": quiz
-    }), 201
-
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+[
+  {
+    "id": 1,
+    "question": "Python дегеніміз не?",
+    "options": ["Бағдарламалау тілі", "Операциялық жүйе", "Компьютер ойыны", "Браузер"],
+    "correct": 0
+  },
+  {
+    "id": 2,
+    "question": "Python файлдарының кеңейтімі қандай?",
+    "options": [".html", ".py", ".css", ".js"],
+    "correct": 1
+  },
+  {
+    "id": 3,
+    "question": "Экранға мәтін шығару командасы қайсы?",
+    "options": ["input()", "print()", "write()", "show()"],
+    "correct": 1
+  },
+  {
+    "id": 4,
+    "question": "Айнымалы дегеніміз не?",
+    "options": ["Мәлімет сақтайтын атау", "Компьютер бөлігі", "Интернет желісі", "Файл түрі"],
+    "correct": 0
+  },
+  {
+    "id": 5,
+    "question": "Python тілінде бүтін санның типі қандай?",
+    "options": ["str", "float", "int", "bool"],
+    "correct": 2
+  },
+  {
+    "id": 6,
+    "question": "Мәтіндік мәліметтің типі қандай?",
+    "options": ["int", "str", "float", "list"],
+    "correct": 1
+  },
+  {
+    "id": 7,
+    "question": "Теңдікке тексеру операторы қайсы?",
+    "options": ["=", "==", "!=", ">"],
+    "correct": 1
+  },
+  {
+    "id": 8,
+    "question": "Python тілінде шартты оператор қалай жазылады?",
+    "options": ["for", "while", "if", "def"],
+    "correct": 2
+  },
+  {
+    "id": 9,
+    "question": "Қайталау циклінің бір түрі қайсы?",
+    "options": ["if", "for", "print", "return"],
+    "correct": 1
+  },
+  {
+    "id": 10,
+    "question": "Тізім (list) қандай жақшамен жазылады?",
+    "options": ["()", "{}", "[]", "<>"],
+    "correct": 2
+  },
+  {
+    "id": 11,
+    "question": "HTML не үшін қолданылады?",
+    "options": ["Веб-беттің құрылымын жасау", "Сурет өңдеу", "Деректерді есептеу", "Компьютерді басқару"],
+    "correct": 0
+  },
+  {
+    "id": 12,
+    "question": "CSS не үшін қажет?",
+    "options": ["Сервер іске қосу", "Веб-бетті безендіру", "Дерекқор құру", "Файл жою"],
+    "correct": 1
+  },
+  {
+    "id": 13,
+    "question": "JavaScript қайда жиі қолданылады?",
+    "options": ["Веб-беттерге интерактивтілік қосу", "Компьютерді өшіру", "Тек мәтін жазу", "Тек сурет салу"],
+    "correct": 0
+  },
+  {
+    "id": 14,
+    "question": "Flask дегеніміз не?",
+    "options": ["Python веб-фреймворкі", "Операциялық жүйе", "Мәтіндік редактор", "Браузер"],
+    "correct": 0
+  },
+  {
+    "id": 15,
+    "question": "API дегеніміз не?",
+    "options": ["Бағдарламалар арасындағы байланыс интерфейсі", "Компьютер жады", "Сурет форматы", "Пернетақта түрі"],
+    "correct": 0
+  },
+  {
+    "id":
