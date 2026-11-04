@@ -13,5 +13,21 @@
     "status": "waiting",
     "current_question": 0,
     "answers": {}
+  },
+  {
+    "pin": "311427",
+    "quiz_id": "ca336ca8-f827-470c-b392-6d77c5485c00",
+    "players": [],
+    "status": "waiting",
+    "current_question": 0,
+    "answers": {}
+  },
+  {
+    "pin": "259829",
+    "quiz_id": "ca336ca8-f827-470c-b392-6d77c5485c00",
+    "players": [],
+    "status": "waiting",
+    "current_question": 0,
+    "answers": {}
   }
 ]
