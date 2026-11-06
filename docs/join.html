@@ -1,0 +1,111 @@
+
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuizRoom — Ойынға қосылу</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #382078, #7955d9);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0;
+        }
+        .box {
+            background: white;
+            padding: 30px;
+            border-radius: 18px;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+        }
+        h1 { color: #6845c5; }
+        input {
+            width: 100%;
+            padding: 14px;
+            margin: 10px 0;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 17px;
+        }
+        button {
+            width: 100%;
+            padding: 14px;
+            margin-top: 12px;
+            border: none;
+            border-radius: 8px;
+            background: #6845c5;
+            color: white;
+            font-size: 17px;
+            cursor: pointer;
+        }
+        #message { color: #c0392b; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h1>🎮 QuizRoom</h1>
+        <h2>Ойынға қосылу</h2>
+
+        <input id="pin" placeholder="6 таңбалы PIN-код" maxlength="6">
+        <input id="name" placeholder="Атыңды жаз">
+
+        <button onclick="joinGame()">Ойынға кіру</button>
+
+        <p id="message"></p>
+    </div>
+
+    <script>
+        // QR арқылы PIN автоматты толтырылуы үшін
+        const params = new URLSearchParams(window.location.search);
+        document.getElementById("pin").value = params.get("pin") || "";
+
+        async function joinGame() {
+            const pin = document.getElementById("pin").value.trim();
+            const name = document.getElementById("name").value.trim();
+            const message = document.getElementById("message");
+
+            if (pin.length !== 6 || !/^\d{6}$/.test(pin)) {
+                message.textContent = "6 таңбалы PIN-кодты енгіз!";
+                return;
+            }
+
+            if (!name) {
+                message.textContent = "Атыңды енгіз!";
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/rooms/${pin}/join`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ name: name })
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    message.textContent = result.error || "Қате пайда болды";
+                    return;
+                }
+
+                sessionStorage.setItem("playerId", result.player.id);
+                sessionStorage.setItem("playerName", result.player.name);
+                sessionStorage.setItem("gamePin", pin);
+
+                window.location.href = "/play.html";
+
+            } catch (error) {
+                message.textContent = "Серверге қосылу мүмкін болмады";
+            }
+        }
+    </script>
+</body>
+</html>

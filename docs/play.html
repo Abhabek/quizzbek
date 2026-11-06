@@ -1,0 +1,188 @@
+
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuizRoom — Ойын</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #382078, #7955d9);
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .container {
+            max-width: 600px;
+            margin: 30px auto;
+            background: white;
+            padding: 25px;
+            border-radius: 18px;
+        }
+        h1 { text-align: center; color: #6845c5; }
+        .center { text-align: center; }
+        .option {
+            width: 100%;
+            padding: 16px;
+            margin: 8px 0;
+            border: none;
+            border-radius: 10px;
+            background: #eee9fc;
+            font-size: 16px;
+            cursor: pointer;
+            text-align: left;
+        }
+        .option:disabled { cursor: default; opacity: 0.8; }
+        .option:hover:not(:disabled) { background: #d9cdfb; }
+        #message { text-align: center; font-weight: bold; }
+        #questionPanel, #resultPanel { display: none; }
+        .score { text-align: center; color: #6845c5; font-size: 22px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🎮 QuizRoom</h1>
+
+    <div id="waitingPanel" class="center">
+        <h2>Сәлем, <span id="playerName"></span>!</h2>
+        <p>Сен ойынға сәтті қосылдың.</p>
+        <h2>⏳ Жүргізушіні күтіп тұр...</h2>
+        <p>Ойын басталғанда сұрақ автоматты түрде ашылады.</p>
+    </div>
+
+    <div id="questionPanel">
+        <p id="questionNumber" class="center"></p>
+        <h2 id="questionText"></h2>
+        <div id="options"></div>
+        <p id="message"></p>
+        <p class="score">Ұпай: <span id="score">0</span></p>
+    </div>
+
+    <div id="resultPanel" class="center">
+        <h2>🎉 Ойын аяқталды!</h2>
+        <p>Сенің ұпайың:</p>
+        <h1 id="finalScore">0</h1>
+    </div>
+</div>
+
+<script>
+const pin = sessionStorage.getItem("gamePin");
+const playerId = sessionStorage.getItem("playerId");
+const playerName = sessionStorage.getItem("playerName");
+
+let lastQuestion = -1;
+let answered = false;
+let score = 0;
+
+document.getElementById("playerName").textContent = playerName || "";
+
+if (!pin || !playerId) {
+    alert("Алдымен PIN арқылы ойынға қосыл!");
+    window.location.href = "/join.html";
+}
+
+async function checkGame() {
+    if (!pin || !playerId) return;
+
+    try {
+        const response = await fetch(`/api/rooms/${pin}/question`);
+        const data = await response.json();
+
+        if (!response.ok) {
+            document.getElementById("message").textContent =
+                data.error || "Қате пайда болды";
+            return;
+        }
+
+        if (data.status === "waiting") return;
+
+        if (data.status === "finished") {
+            document.getElementById("waitingPanel").style.display = "none";
+            document.getElementById("questionPanel").style.display = "none";
+            document.getElementById("resultPanel").style.display = "block";
+            document.getElementById("finalScore").textContent = score;
+            return;
+        }
+
+        if (data.status === "playing" && data.number - 1 !== lastQuestion) {
+            lastQuestion = data.number - 1;
+            answered = false;
+            showQuestion(data);
+        }
+    } catch (error) {
+        console.log("Серверге қосылу қатесі:", error);
+    }
+}
+
+function showQuestion(data) {
+    document.getElementById("waitingPanel").style.display = "none";
+    document.getElementById("questionPanel").style.display = "block";
+
+    document.getElementById("questionNumber").textContent =
+        `Сұрақ ${data.number} / ${data.total}`;
+
+    document.getElementById("questionText").textContent = data.question;
+    document.getElementById("message").textContent = "";
+
+    const options = document.getElementById("options");
+    options.innerHTML = "";
+
+    data.options.forEach((option, index) => {
+        const button = document.createElement("button");
+        button.className = "option";
+        button.textContent = `${index + 1}. ${option}`;
+        button.onclick = () => sendAnswer(index);
+        options.appendChild(button);
+    });
+}
+
+async function sendAnswer(answer) {
+    if (answered) return;
+    answered = true;
+
+    document.querySelectorAll(".option").forEach(button => {
+        button.disabled = true;
+    });
+
+    try {
+        const response = await fetch(`/api/rooms/${pin}/answer`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                player_id: playerId,
+                answer: answer
+            })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            document.getElementById("message").textContent =
+                data.error || "Жауап жіберілмеді";
+            answered = false;
+            return;
+        }
+
+        if (data.correct) {
+            document.getElementById("message").textContent = "✅ Дұрыс жауап!";
+        } else {
+            document.getElementById("message").textContent = "❌ Қате жауап!";
+        }
+
+        score = data.score;
+        document.getElementById("score").textContent = score;
+
+    } catch (error) {
+        document.getElementById("message").textContent =
+            "Серверге қосылу мүмкін болмады";
+        answered = false;
+    }
+}
+
+checkGame();
+setInterval(checkGame, 1000);
+</script>
+</body>
+</html>

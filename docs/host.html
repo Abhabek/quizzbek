@@ -1,0 +1,345 @@
+
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuizRoom — Жүргізуші</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #382078, #7955d9);
+        }
+        .container {
+            max-width: 850px;
+            margin: 20px auto;
+            padding: 25px;
+            background: white;
+            border-radius: 18px;
+        }
+        h1, .center { text-align: center; }
+        h1 { color: #6845c5; }
+        .panel {
+            background: #f3efff;
+            padding: 20px;
+            border-radius: 12px;
+            margin: 15px 0;
+        }
+        button {
+            background: #6845c5;
+            color: white;
+            border: none;
+            border-radius: 9px;
+            padding: 13px 20px;
+            margin: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:disabled { background: #aaa; cursor: not-allowed; }
+        .pin {
+            font-size: 42px;
+            font-weight: bold;
+            letter-spacing: 7px;
+            color: #6845c5;
+            text-align: center;
+        }
+        #qrcode {
+            display: flex;
+            justify-content: center;
+            margin: 15px;
+        }
+        .player {
+            background: white;
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 8px;
+        }
+        #message { color: #6845c5; font-weight: bold; }
+        #gamePanel { display: none; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🎮 QuizRoom</h1>
+    <p class="center">Жүргізуші панелі</p>
+
+    <div class="panel">
+        <h2>📚 IT және Python негіздері</h2>
+        <p>Сұрақ саны: <strong id="total">Жүктелуде...</strong></p>
+        <button id="createButton" onclick="createRoom()" disabled>
+            Ойын бөлмесін ашу
+        </button>
+        <p id="message">Квиз жүктеліп жатыр...</p>
+    </div>
+
+    <div id="roomPanel" style="display:none">
+        <div class="panel center">
+            <h2>Ойынға қосылу</h2>
+            <p>PIN-код:</p>
+            <div class="pin" id="pin">------</div>
+            <h3>QR-кодты сканерле</h3>
+            <div id="qrcode"></div>
+            <p id="joinLink"></p>
+        </div>
+
+        <div class="panel">
+            <h2>👥 Ойыншылар: <span id="playerCount">0</span></h2>
+            <div id="players">
+                Әзірге ешкім қосылған жоқ.
+            </div>
+            <p id="roomStatus">Ойыншылар күтілуде...</p>
+            <button id="startButton" onclick="startGame()" disabled>
+                🚀 Ойынды бастау
+            </button>
+        </div>
+    </div>
+
+    <div id="gamePanel" class="panel">
+        <h2 id="questionNumber"></h2>
+        <h3 id="questionText"></h3>
+        <button id="nextButton" onclick="nextQuestion()">
+            Келесі сұрақ →
+        </button>
+        <div id="leaderboard"></div>
+    </div>
+</div>
+
+<script>
+let quiz = null;
+let pin = null;
+let polling = null;
+let gameStarted = false;
+
+async function loadQuiz() {
+    try {
+        const response = await fetch("/api/quizzes");
+        const data = await response.json();
+
+        if (!response.ok) throw new Error("Квиздерді жүктеу қатесі");
+
+        // Алдымен дайын квизді іздейміз.
+        quiz = data.find(item => Array.isArray(item.questions));
+
+        // Егер файлда тек сұрақтар болса, олардан квиз құрамыз.
+        if (!quiz) {
+            const questions = data.filter(
+                item => item.question && item.options
+            );
+
+            if (!questions.length) {
+                throw new Error("Сұрақтар табылмады");
+            }
+
+            const saveResponse = await fetch("/api/quizzes", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    title: "IT және Python негіздері",
+                    questions: questions
+                })
+            });
+
+            const result = await saveResponse.json();
+            if (!saveResponse.ok) {
+                throw new Error(result.error || "Квизді сақтау қатесі");
+            }
+
+            quiz = result.quiz;
+        }
+
+        document.getElementById("total").textContent =
+            quiz.questions.length;
+
+        document.getElementById("message").textContent =
+            "✅ Квиз дайын!";
+
+        document.getElementById("createButton").disabled = false;
+
+    } catch (error) {
+        document.getElementById("message").textContent =
+            "Қате: " + error.message;
+    }
+}
+
+async function createRoom() {
+    try {
+        const response = await fetch("/api/rooms", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ quiz_id: quiz.id })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || "Бөлмені ашу мүмкін болмады");
+        }
+
+        pin = data.room.pin;
+
+        document.getElementById("pin").textContent = pin;
+        document.getElementById("roomPanel").style.display = "block";
+        document.getElementById("createButton").disabled = true;
+        document.getElementById("message").textContent =
+            "Ойын бөлмесі ашылды! Ойыншыларды күтіңіз.";
+
+        const joinUrl = window.location.origin +
+            "/join.html?pin=" + pin;
+
+        document.getElementById("joinLink").textContent = joinUrl;
+
+        if (typeof QRCode !== "undefined") {
+            document.getElementById("qrcode").innerHTML = "";
+            new QRCode(document.getElementById("qrcode"), {
+                text: joinUrl,
+                width: 180,
+                height: 180
+            });
+        } else {
+            document.getElementById("qrcode").textContent =
+                "QR кітапханасы жүктелмеді. PIN арқылы кіріңіз.";
+        }
+
+        polling = setInterval(updateRoom, 1000);
+        updateRoom();
+
+    } catch (error) {
+        alert("Қате: " + error.message);
+    }
+}
+
+async function updateRoom() {
+    if (!pin) return;
+
+    try {
+        const response = await fetch(`/api/rooms/${pin}`);
+        const room = await response.json();
+
+        if (!response.ok) return;
+
+        const players = room.players || [];
+        document.getElementById("playerCount").textContent =
+            players.length;
+
+        const list = document.getElementById("players");
+        list.innerHTML = "";
+
+        if (players.length === 0) {
+            list.textContent = "Әзірге ешкім қосылған жоқ.";
+        } else {
+            players.forEach((player, index) => {
+                const div = document.createElement("div");
+                div.className = "player";
+                div.textContent = `${index + 1}. ${player.name}`;
+                list.appendChild(div);
+            });
+        }
+
+        if (!gameStarted) {
+            document.getElementById("startButton").disabled =
+                players.length === 0;
+        }
+
+        if (room.status === "playing") {
+            gameStarted = true;
+            document.getElementById("startButton").disabled = true;
+            document.getElementById("roomStatus").textContent =
+                "Ойын жүріп жатыр!";
+            showHostQuestion();
+        }
+
+        if (room.status === "finished") {
+            clearInterval(polling);
+            document.getElementById("roomStatus").textContent =
+                "🎉 Ойын аяқталды!";
+            showLeaderboard(players);
+        }
+
+    } catch (error) {
+        console.log("Бөлмені жаңарту қатесі:", error);
+    }
+}
+
+async function startGame() {
+    const response = await fetch(`/api/rooms/${pin}/start`, {
+        method: "POST"
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        alert(data.error || "Ойынды бастау қатесі");
+        return;
+    }
+
+    gameStarted = true;
+    document.getElementById("startButton").disabled = true;
+    document.getElementById("roomStatus").textContent =
+        "🚀 Ойын басталды!";
+    showHostQuestion();
+}
+
+async function showHostQuestion() {
+    const response = await fetch(`/api/rooms/${pin}/question`);
+    const data = await response.json();
+
+    if (data.status === "finished") {
+        document.getElementById("questionText").textContent =
+            "🎉 Барлық сұрақ аяқталды!";
+        document.getElementById("nextButton").disabled = true;
+        return;
+    }
+
+    if (data.status !== "playing") return;
+
+    document.getElementById("gamePanel").style.display = "block";
+    document.getElementById("questionNumber").textContent =
+        `Сұрақ ${data.number} / ${data.total}`;
+    document.getElementById("questionText").textContent =
+        data.question;
+}
+
+async function nextQuestion() {
+    const response = await fetch(`/api/rooms/${pin}/next`, {
+        method: "POST"
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        alert(data.error || "Келесі сұраққа өту қатесі");
+        return;
+    }
+
+    if (data.status === "finished") {
+        document.getElementById("questionText").textContent =
+            "🎉 Ойын аяқталды!";
+        document.getElementById("nextButton").disabled = true;
+        updateRoom();
+    } else {
+        showHostQuestion();
+    }
+}
+
+function showLeaderboard(players) {
+    const sorted = [...players].sort((a, b) => b.score - a.score);
+    const board = document.getElementById("leaderboard");
+    board.innerHTML = "<h2>🏆 Ойын нәтижесі</h2>";
+
+    sorted.forEach((player, index) => {
+        const div = document.createElement("div");
+        div.className = "player";
+        div.textContent =
+            `${index + 1}. ${player.name} — ${player.score} ұпай`;
+        board.appendChild(div);
+    });
+}
+
+loadQuiz();
+</script>
+</body>
+</html>
