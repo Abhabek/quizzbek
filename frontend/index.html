@@ -1,47 +1,292 @@
-
 <!DOCTYPE html>
 <html lang="kk">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QuizRoom</title>
-    <link rel="stylesheet" href="css/style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pixel Quest - Hexlet Adventure</title>
+<style>
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: #101827;
+  color: white;
+  font-family: monospace;
+  text-align: center;
+}
+h1 { color: #facc15; }
+canvas {
+  width: min(900px, 96vw);
+  height: auto;
+  border: 5px solid #8b5a2b;
+  image-rendering: pixelated;
+}
+#info { margin: 10px; font-size: 18px; }
+#question {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: #000c;
+  justify-content: center;
+  align-items: center;
+}
+.panel {
+  background: #243449;
+  border: 4px solid #facc15;
+  padding: 25px;
+  width: min(500px, 92vw);
+}
+button {
+  display: block;
+  width: 100%;
+  margin: 9px 0;
+  padding: 13px;
+  background: #2563eb;
+  color: white;
+  border: 0;
+  font-size: 17px;
+  cursor: pointer;
+}
+button:hover { background: #1d4ed8; }
+#message { color: #facc15; }
+</style>
 </head>
 <body>
 
-    <main class="container">
-        <h1>🧠 QuizRoom</h1>
-        <p>Достарыңмен бірге қызықты квиз ойна!</p>
+<h1>⚔️ PIXEL QUEST: HEXLET ADVENTURE</h1>
+<div id="info">❤️ HP: <span id="hp">100</span>
+ | 🪙 Монета: <span id="coins">0</span></div>
 
-        <div class="card">
-            <h2>Ойынға қосылу</h2>
-            <input type="text" id="pin" placeholder="6 таңбалы PIN енгіз">
-            <button onclick="joinRoom()">Ойынға кіру</button>
-        </div>
+<canvas id="game" width="900" height="600"></canvas>
 
-        <div class="card">
-            <h2>Сен жүргізушісің бе?</h2>
-            <a href="host.html">Жүргізуші панелі</a>
-        </div>
+<p>Қозғалу: WASD немесе бағыттауыштар | Құбыжыққа жақындап SPACE бас</p>
 
-        <div class="card">
-            <h2>Өз квизіңді жаса</h2>
-            <a href="create.html">Квиз жасау</a>
-        </div>
-    </main>
+<div id="question">
+  <div class="panel">
+    <h2>📚 HEXLET СЫНАҚ</h2>
+    <h3 id="questionText"></h3>
+    <div id="answers"></div>
+    <p id="message"></p>
+  </div>
+</div>
 
-    <script>
-        function joinRoom() {
-            const pin = document.getElementById("pin").value.trim();
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
 
-            if (!/^\d{6}$/.test(pin)) {
-                alert("6 таңбалы PIN енгіз!");
-                return;
-            }
+const player = { x: 100, y: 100, size: 32, speed: 4 };
+let hp = 100;
+let coins = 0;
+let enemy = { x: 650, y: 350, alive: true };
 
-            window.location.href = "join.html?pin=" + pin;
-        }
-    </script>
+const questions = [
+  {
+    q: "HTML не үшін қолданылады?",
+    a: ["Сайт құрылымы", "Деректер базасы", "Операциялық жүйе", "Ойын қозғалтқышы"],
+    c: 0
+  },
+  {
+    q: "CSS не үшін қажет?",
+    a: ["Сервер жасау", "Сайтты безендіру", "Файл сақтау", "Интернет қосу"],
+    c: 1
+  },
+  {
+    q: "HTML тақырыбы қандай тегпен жазылады?",
+    a: ["<p>", "<img>", "<h1>", "<div>"],
+    c: 2
+  },
+  {
+    q: "Сілтеме жасау тегі?",
+    a: ["<a>", "<h1>", "<body>", "<br>"],
+    c: 0
+  },
+  {
+    q: "CSS-та мәтін түсін өзгертетін қасиет?",
+    a: ["font-size", "color", "width", "margin"],
+    c: 1
+  },
+  {
+    q: "JavaScript не үшін қолданылады?",
+    a: ["Интерактивтілік", "Тек сурет", "Компьютер жинау", "Монитор қосу"],
+    c: 0
+  },
+  {
+    q: "HTML құжатының негізгі тегі?",
+    a: ["<html>", "<css>", "<script>", "<title>"],
+    c: 0
+  },
+  {
+    q: "CSS-та фон түсі?",
+    a: ["text-color", "background-color", "font", "border-size"],
+    c: 1
+  },
+  {
+    q: "JavaScript-та айнымалы жариялау?",
+    a: ["var", "print", "style", "html"],
+    c: 0
+  },
+  {
+    q: "Сурет қосатын HTML тегі?",
+    a: ["<picture-text>", "<img>", "<image-text>", "<photo>"],
+    c: 1
+  }
+];
 
+let current = 0;
+let questionOpen = false;
+let gameOver = false;
+const keys = {};
+
+document.addEventListener("keydown", e => {
+  keys[e.key.toLowerCase()] = true;
+
+  if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"," "].includes(e.key))
+    e.preventDefault();
+
+  if (e.code === "Space" && !questionOpen && !gameOver) {
+    const dx = player.x - enemy.x;
+    const dy = player.y - enemy.y;
+    if (enemy.alive && Math.hypot(dx, dy) < 90) {
+      showQuestion();
+    }
+  }
+});
+
+document.addEventListener("keyup", e => {
+  keys[e.key.toLowerCase()] = false;
+});
+
+function drawTree(x, y) {
+  ctx.fillStyle = "#754421";
+  ctx.fillRect(x + 15, y + 25, 12, 30);
+  ctx.fillStyle = "#14532d";
+  ctx.fillRect(x, y, 42, 35);
+  ctx.fillStyle = "#166534";
+  ctx.fillRect(x + 8, y - 10, 28, 25);
+}
+
+function draw() {
+  ctx.fillStyle = "#267044";
+  ctx.fillRect(0, 0, 900, 600);
+
+  // Шөптер
+  ctx.fillStyle = "#358653";
+  for (let i = 0; i < 900; i += 40) {
+    for (let j = 0; j < 600; j += 40) {
+      ctx.fillRect(i + 5, j + 5, 3, 3);
+    }
+  }
+
+  // Жол
+  ctx.fillStyle = "#a17a4b";
+  ctx.fillRect(0, 270, 900, 100);
+  ctx.fillRect(380, 0, 100, 600);
+
+  // Ағаштар
+  for (let i = 0; i < 900; i += 150) {
+    drawTree(i, 40);
+    drawTree(i, 490);
+  }
+
+  // Кейіпкер
+  ctx.fillStyle = "#1d4ed8";
+  ctx.fillRect(player.x, player.y, 32, 32);
+  ctx.fillStyle = "#f5c58b";
+  ctx.fillRect(player.x + 7, player.y + 4, 18, 15);
+  ctx.fillStyle = "#111827";
+  ctx.fillRect(player.x + 10, player.y + 10, 4, 4);
+  ctx.fillRect(player.x + 20, player.y + 10, 4, 4);
+
+  // Құбыжық
+  if (enemy.alive) {
+    ctx.fillStyle = "#991b1b";
+    ctx.fillRect(enemy.x, enemy.y, 38, 38);
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(enemy.x + 7, enemy.y + 9, 7, 7);
+    ctx.fillRect(enemy.x + 24, enemy.y + 9, 7, 7);
+    ctx.fillStyle = "#111";
+    ctx.fillRect(enemy.x + 9, enemy.y + 11, 4, 4);
+    ctx.fillRect(enemy.x + 26, enemy.y + 11, 4, 4);
+  }
+
+  ctx.fillStyle = "white";
+  ctx.font = "18px monospace";
+  ctx.fillText("Батыр", player.x - 5, player.y - 10);
+  if (enemy.alive) ctx.fillText("👾 SPACE", enemy.x - 10, enemy.y - 12);
+}
+
+function update() {
+  if (!questionOpen && !gameOver) {
+    if (keys["arrowup"] || keys["w"]) player.y -= player.speed;
+    if (keys["arrowdown"] || keys["s"]) player.y += player.speed;
+    if (keys["arrowleft"] || keys["a"]) player.x -= player.speed;
+    if (keys["arrowright"] || keys["d"]) player.x += player.speed;
+  }
+
+  player.x = Math.max(0, Math.min(868, player.x));
+  player.y = Math.max(0, Math.min(568, player.y));
+
+  draw();
+  requestAnimationFrame(update);
+}
+
+function showQuestion() {
+  questionOpen = true;
+  const q = questions[current];
+  document.getElementById("question").style.display = "flex";
+  document.getElementById("questionText").textContent = q.q;
+
+  const box = document.getElementById("answers");
+  box.innerHTML = "";
+  document.getElementById("message").textContent = "";
+
+  q.a.forEach((answer, i) => {
+    const btn = document.createElement("button");
+    btn.textContent = (i + 1) + ". " + answer;
+    btn.onclick = () => checkAnswer(i);
+    box.appendChild(btn);
+  });
+}
+
+function checkAnswer(choice) {
+  const q = questions[current];
+  const message = document.getElementById("message");
+
+  if (choice === q.c) {
+    coins += 1;
+    current += 1;
+    enemy.alive = false;
+    message.textContent = "Дұрыс! +1 монета 🎉";
+  } else {
+    hp -= 10;
+    message.textContent = "Қате! -10 HP ❤️";
+  }
+
+  document.getElementById("hp").textContent = hp;
+  document.getElementById("coins").textContent = coins;
+
+  document.querySelectorAll("#answers button").forEach(b => b.disabled = true);
+
+  setTimeout(() => {
+    document.getElementById("question").style.display = "none";
+    questionOpen = false;
+
+    if (hp <= 0) {
+      gameOver = true;
+      alert("Ойын аяқталды! Қайта бастау үшін бетті жаңарт.");
+    } else if (current >= questions.length) {
+      gameOver = true;
+      alert("ЖЕҢІС! Барлық Hexlet сұрақтарын орындадың! 🏆");
+    } else if (!enemy.alive) {
+      enemy = {
+        x: 100 + Math.random() * 650,
+        y: 100 + Math.random() * 400,
+        alive: true
+      };
+    }
+  }, 1100);
+}
+
+update();
+</script>
 </body>
 </html>
